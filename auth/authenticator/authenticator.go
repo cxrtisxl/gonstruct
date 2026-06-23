@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	tools "github.com/cxrtisxl/gonstruct/httptools"
+	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
 )
 
@@ -26,7 +27,9 @@ type OAuthAuthenticator struct {
 func NewOAuthAuthenticator(
 	loginHandler LoginHandler,
 	logoutHandler tools.HandlerFunc,
+	gothProviders []goth.Provider,
 ) *OAuthAuthenticator {
+	goth.UseProviders(gothProviders...)
 	return &OAuthAuthenticator{
 		loginHandler:  loginHandler,
 		logoutHandler: logoutHandler,

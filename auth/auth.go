@@ -9,6 +9,7 @@ import (
 	"github.com/cxrtisxl/gonstruct/auth/jose"
 	"github.com/cxrtisxl/gonstruct/auth/strategy"
 	tools "github.com/cxrtisxl/gonstruct/httptools"
+	"github.com/markbates/goth"
 )
 
 type Service interface {
@@ -33,6 +34,7 @@ func (oaj *OAuthJWT) Mount(mux *http.ServeMux, prefix string, errHandler tools.E
 func NewDefault(
 	mux *http.ServeMux,
 	loginCallback func(user *authenticator.User) (userId string, err *tools.StatusError),
+	gothProviders []goth.Provider,
 	web bool,
 ) (*OAuthJWT, error) {
 	refreshInBody := !web
@@ -62,6 +64,7 @@ func NewDefault(
 			return s.IssuePair(id, w, r)
 		},
 		nil,
+		gothProviders,
 	)
 
 	return &OAuthJWT{s: s, a: a}, nil
