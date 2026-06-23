@@ -7,23 +7,24 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+type TokenType string
+
 const (
-	TokenTypeAccess  = "access"
-	TokenTypeRefresh = "refresh"
+	TokenTypeAccess  TokenType = "access"
+	TokenTypeRefresh TokenType = "refresh"
 )
 
 type AccessClaims struct {
 	jwt.RegisteredClaims
-	Type string `json:"typ"`
-	Role string `json:"role,omitempty"`
+	Type TokenType `json:"typ"`
 }
 
 type RefreshClaims struct {
 	jwt.RegisteredClaims
-	Type string `json:"typ"`
+	Type TokenType `json:"typ"`
 }
 
-func NewAccessClaims(sub, role string, ttl time.Duration) AccessClaims {
+func NewAccessClaims(sub string, ttl time.Duration) AccessClaims {
 	now := time.Now()
 	return AccessClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -32,7 +33,6 @@ func NewAccessClaims(sub, role string, ttl time.Duration) AccessClaims {
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 		},
 		Type: TokenTypeAccess,
-		Role: role,
 	}
 }
 

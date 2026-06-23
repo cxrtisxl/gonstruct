@@ -19,7 +19,7 @@ func TestNewKeychain(t *testing.T) {
 	key, err := jose.NewKey(jose.KeyTypeECDSA, keyb)
 	keychain := jose.NewKeychain(key)
 
-	accessJwt, err := keychain.Sign(jose.NewAccessClaims("1", "def", time.Hour))
+	accessJwt, err := keychain.Sign(jose.NewAccessClaims("1", time.Hour))
 	if err != nil {
 		t.Fatal(err)
 	}

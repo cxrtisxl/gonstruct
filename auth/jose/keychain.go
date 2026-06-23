@@ -1,6 +1,9 @@
 package jose
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"errors"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -13,7 +16,28 @@ type Keychain struct {
 	jwks       JWKS
 }
 
-func NewKeychain(primaryKey Key, keys ...Key) Keychain {
+func GenerateKeychain(keyType KeyType) (*Keychain, error) {
+	switch keyType {
+	case KeyTypeECDSA:
+		ecdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return nil, err
+		}
+		keyb, err := ecdsaKey.Bytes()
+		if err != nil {
+			return nil, err
+		}
+		key, err := NewKey(KeyTypeECDSA, keyb)
+		if err != nil {
+			return nil, err
+		}
+		return NewKeychain(key), nil
+	default:
+		return nil, errors.New("key type is not supported")
+	}
+}
+
+func NewKeychain(primaryKey Key, keys ...Key) *Keychain {
 	keychain := Keychain{
 		keys:       make(map[string]Key),
 		primaryKey: primaryKey,
@@ -32,7 +56,7 @@ func NewKeychain(primaryKey Key, keys ...Key) Keychain {
 		}
 		keychain.jwks.Keys = append(keychain.jwks.Keys, key.JWK())
 	}
-	return keychain
+	return &keychain
 }
 
 func (k Keychain) Key(kid string) (key Key, ok bool) {
@@ -102,4 +126,8 @@ func (k Keychain) VerifyRefresh(token string) (RefreshClaims, error) {
 		return RefreshClaims{}, ErrWrongTokenType
 	}
 	return claims, nil
+}
+
+func (k Keychain) JWKS() JWKS {
+	return k.jwks
 }
