@@ -20,16 +20,16 @@ type Provider interface {
 type LoginHandler func(user *User, w http.ResponseWriter, r *http.Request) error
 
 type OAuthAuthenticator struct {
-	loginHandler  LoginHandler
-	logoutHandler tools.HandlerFunc
+	loginHandler    LoginHandler
+	logoutHandler   tools.HandlerFunc
+	providerConfigs []goth.ProviderConfig
 }
 
 func NewOAuthAuthenticator(
 	loginHandler LoginHandler,
 	logoutHandler tools.HandlerFunc,
-	gothProviders []goth.Provider,
+	gothProviders []goth.ProviderConfig,
 ) *OAuthAuthenticator {
-	goth.UseProviders(gothProviders...)
 	return &OAuthAuthenticator{
 		loginHandler:  loginHandler,
 		logoutHandler: logoutHandler,
@@ -41,8 +41,15 @@ func (oa *OAuthAuthenticator) Type() Type {
 }
 
 func (oa *OAuthAuthenticator) Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler) {
+	callbackURL := prefix + "/{provider}/callback"
+	providers := make([]goth.Provider, len(oa.providerConfigs))
+	for i, cfg := range oa.providerConfigs {
+		cfg.SetCallbackURL(callbackURL)
+		providers[i] = cfg.Build()
+	}
+	goth.UseProviders(providers...)
 	mux.Handle("GET "+prefix+"/{provider}", errHandler(tools.HandlerFunc(oa.AuthHandler)))
-	mux.Handle("GET "+prefix+"/{provider}/callback", errHandler(tools.HandlerFunc(oa.CallbackHandler)))
+	mux.Handle("GET "+callbackURL, errHandler(tools.HandlerFunc(oa.CallbackHandler)))
 	mux.Handle("POST "+prefix+"/logout", errHandler(tools.HandlerFunc(tools.HandlerFunc(oa.LogoutHandler))))
 }
 

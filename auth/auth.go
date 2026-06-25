@@ -34,7 +34,7 @@ func (oaj *OAuthJWT) Mount(mux *http.ServeMux, prefix string, errHandler tools.E
 func NewDefault(
 	mux *http.ServeMux,
 	loginCallback func(user *authenticator.User) (userId string, err *tools.StatusError),
-	gothProviders []goth.Provider,
+	gothProviders []goth.ProviderConfig,
 	web bool,
 ) (*OAuthJWT, error) {
 	refreshInBody := !web
