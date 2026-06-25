@@ -47,8 +47,7 @@ func (oa *OAuthAuthenticator) Type() Type {
 func (oa *OAuthAuthenticator) Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler) {
 	providers := make([]goth.Provider, len(oa.providerConfigs))
 	for i, cfg := range oa.providerConfigs {
-		provider := cfg.Build()
-		cfg.SetCallbackURL(oa.baseDomain + prefix + "/" + provider.Name() + "/callback")
+		cfg.SetCallbackURL(oa.baseDomain + prefix + "/" + cfg.Name() + "/callback")
 		providers[i] = cfg.Build()
 	}
 	goth.UseProviders(providers...)

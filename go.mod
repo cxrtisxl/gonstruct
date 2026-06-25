@@ -18,4 +18,4 @@ require (
 	golang.org/x/oauth2 v0.30.0 // indirect
 )
 
-replace github.com/markbates/goth => github.com/cxrtisxl/goth v0.0.0-20260623193653-377b228d9916
+replace github.com/markbates/goth => github.com/cxrtisxl/goth v0.0.0-20260625165014-2a3317f91c52
