@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -23,10 +25,14 @@ func GenerateKeychain(keyType KeyType) (*Keychain, error) {
 		if err != nil {
 			return nil, err
 		}
-		keyb, err := ecdsaKey.Bytes()
+		der, err := x509.MarshalECPrivateKey(ecdsaKey)
 		if err != nil {
 			return nil, err
 		}
+		keyb := pem.EncodeToMemory(&pem.Block{
+			Type:  "EC PRIVATE KEY",
+			Bytes: der,
+		})
 		key, err := NewKey(KeyTypeECDSA, keyb)
 		if err != nil {
 			return nil, err
