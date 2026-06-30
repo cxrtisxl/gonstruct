@@ -127,10 +127,9 @@ func (j *JWT) IssuePair(sub string, w http.ResponseWriter, r *http.Request) erro
 		return &tools.StatusError{Code: 500, Err: err}
 	}
 
-	body := map[string]string{
-		"access_token": accessToken,
-	}
+	body := map[string]string{}
 	if j.refreshInBody {
+		body["access_token"] = accessToken
 		body["refresh_token"] = refreshToken
 	} else {
 		http.SetCookie(w, &http.Cookie{
@@ -139,7 +138,7 @@ func (j *JWT) IssuePair(sub string, w http.ResponseWriter, r *http.Request) erro
 			Path:     "/auth/refresh",
 			HttpOnly: true,
 			Secure:   true,
-			SameSite: http.SameSiteStrictMode,
+			SameSite: http.SameSiteLaxMode,
 			MaxAge:   int(j.refreshTokenTTL.Seconds()),
 		})
 	}
