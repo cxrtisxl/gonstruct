@@ -14,7 +14,7 @@ import (
 
 type Service interface {
 	Middleware(next tools.Handler) tools.Handler
-	Mount(mux *http.ServeMux, prefix string)
+	Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler)
 }
 
 type OAuthJWT struct {
@@ -26,17 +26,21 @@ func (oaj *OAuthJWT) Middleware(next tools.Handler) tools.Handler {
 	return oaj.s.Middleware(next)
 }
 
-func (oaj *OAuthJWT) Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler) {
+func (oaj *OAuthJWT) Mount(
+	mux *http.ServeMux,
+	prefix string,
+	errHandler tools.ErrorHandler,
+) {
 	oaj.s.Mount(mux, prefix, errHandler)
 	oaj.a.Mount(mux, prefix, errHandler)
 }
 
 func NewDefault(
-	mux *http.ServeMux,
+	baseDomain string,
 	loginCallback func(user *authenticator.User) (userId string, err *tools.StatusError),
-	gothProviders []goth.Provider,
+	gothProviders []goth.ProviderConfig,
 	web bool,
-) (*OAuthJWT, error) {
+) (Service, error) {
 	refreshInBody := !web
 	s, err := strategy.NewEphemeralJWT(strategy.EphemeralJWTOpts{
 		KeyType:         jose.KeyTypeECDSA,
@@ -50,6 +54,7 @@ func NewDefault(
 	}
 
 	a := authenticator.NewOAuthAuthenticator(
+		baseDomain,
 		func(user *authenticator.User, w http.ResponseWriter, r *http.Request) error {
 			id, err := loginCallback(user)
 			if err != nil {

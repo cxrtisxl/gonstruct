@@ -16,12 +16,12 @@ const (
 
 type AccessClaims struct {
 	jwt.RegisteredClaims
-	Type TokenType `json:"typ"`
+	Type TokenType `json:"token_type"`
 }
 
 type RefreshClaims struct {
 	jwt.RegisteredClaims
-	Type TokenType `json:"typ"`
+	Type TokenType `json:"token_type"`
 }
 
 func NewAccessClaims(sub string, ttl time.Duration) AccessClaims {
@@ -48,4 +48,4 @@ func NewRefreshClaims(sub string, ttl time.Duration) RefreshClaims {
 	}
 }
 
-var ErrWrongTokenType = errors.New("wrong typ")
+var ErrWrongTokenType = errors.New("wrong token_type")
