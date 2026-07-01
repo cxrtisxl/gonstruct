@@ -13,7 +13,7 @@ type Type string
 const TypeOAuth Type = "oauth"
 
 type Provider interface {
-	Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler)
+	Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler) error
 	Type() Type
 }
 
@@ -44,7 +44,7 @@ func (oa *OAuthAuthenticator) Type() Type {
 	return TypeOAuth
 }
 
-func (oa *OAuthAuthenticator) Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler) {
+func (oa *OAuthAuthenticator) Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler) error {
 	providers := make([]goth.Provider, len(oa.providerConfigs))
 	for i, cfg := range oa.providerConfigs {
 		cfg.SetCallbackURL(oa.baseDomain + prefix + "/" + cfg.Name() + "/callback")
@@ -54,6 +54,7 @@ func (oa *OAuthAuthenticator) Mount(mux *http.ServeMux, prefix string, errHandle
 	mux.Handle("GET "+prefix+"/{provider}", errHandler(tools.HandlerFunc(oa.AuthHandler)))
 	mux.Handle("GET "+prefix+"/{provider}/callback", errHandler(tools.HandlerFunc(oa.CallbackHandler)))
 	mux.Handle("POST "+prefix+"/logout", errHandler(tools.HandlerFunc(oa.LogoutHandler)))
+	return nil
 }
 
 func (oa *OAuthAuthenticator) AuthHandler(w http.ResponseWriter, r *http.Request) error {

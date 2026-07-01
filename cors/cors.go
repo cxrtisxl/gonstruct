@@ -1,7 +1,6 @@
 package cors
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 )
@@ -13,8 +12,8 @@ type Config struct {
 	headers        []string
 }
 
-func New(origins []string, methods []string, headers []string) (c *Config) {
-	c = &Config{}
+func New(origins []string, methods []string, headers []string) *Config {
+	c := &Config{}
 	c.allowedOrigins = make(map[string]bool)
 
 	if len(origins) > 1 {
@@ -49,7 +48,6 @@ func (c *Config) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		if c.allowedOrigins["*"] || c.allowedOrigins[origin] {
-			fmt.Println("ORIGIN", c.allowedOrigins[origin], c.allowedOrigins["*"])
 			methodsString := strings.Join(c.methods, ", ")
 			headersString := strings.Join(c.headers, ", ")
 

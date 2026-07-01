@@ -1,7 +1,5 @@
 package strategy
 
-// TODO OId config
-
 import (
 	"context"
 	"encoding/json"
@@ -16,7 +14,7 @@ import (
 
 type Scheme interface {
 	Middleware(next tools.Handler) tools.Handler
-	Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler)
+	Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler) error
 	Type() Type
 }
 
@@ -101,7 +99,7 @@ func (j *JWT) Middleware(next tools.Handler) tools.Handler {
 				Err:  err,
 			}
 		}
-		r.WithContext(context.WithValue(r.Context(), ctxDataKey, CtxData{Type: TypeJWT, Data: claims}))
+		r = r.WithContext(context.WithValue(r.Context(), ctxDataKey, CtxData{Type: TypeJWT, Data: claims}))
 		return next.ServeHTTP(w, r)
 	})
 }
@@ -171,18 +169,23 @@ func (j *JWT) VerifyAccess(token string) (jose.AccessClaims, error) {
 	return claims, nil
 }
 
-func (j *JWT) Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler) {
-	mux.Handle("GET /.well-known/jwks.json", j.JwksHandler())
+func (j *JWT) Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler) error {
+	jwksHandler, err := j.JWKSHandler()
+	if err != nil {
+		return err
+	}
+	mux.Handle("GET /.well-known/jwks.json", jwksHandler)
 	mux.Handle("POST "+prefix+"/refresh", errHandler(tools.HandlerFunc(j.Refresh)))
+	return nil
 }
 
-func (j *JWT) JwksHandler() http.Handler {
+func (j *JWT) JWKSHandler() (http.Handler, error) {
 	jwksCached, err := json.Marshal(j.keychain.JWKS())
 	if err != nil {
-		panic(err)
+		return nil, errors.New("failed to marshal keychain JWKS")
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(jwksCached)
-	})
+	}), nil
 }

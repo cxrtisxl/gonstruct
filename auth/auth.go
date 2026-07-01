@@ -14,7 +14,7 @@ import (
 
 type Service interface {
 	Middleware(next tools.Handler) tools.Handler
-	Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler)
+	Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler) error
 }
 
 type OAuthJWT struct {
@@ -30,14 +30,21 @@ func (oaj *OAuthJWT) Mount(
 	mux *http.ServeMux,
 	prefix string,
 	errHandler tools.ErrorHandler,
-) {
-	oaj.s.Mount(mux, prefix, errHandler)
-	oaj.a.Mount(mux, prefix, errHandler)
+) error {
+	err := oaj.s.Mount(mux, prefix, errHandler)
+	if err != nil {
+		return err
+	}
+	err = oaj.a.Mount(mux, prefix, errHandler)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func NewDefault(
 	baseDomain string,
-	loginCallback func(user *authenticator.User) (userId string, err *tools.StatusError),
+	loginCallback func(user *authenticator.User) (userID string, err *tools.StatusError),
 	gothProviders []goth.ProviderConfig,
 	web bool,
 ) (Service, error) {

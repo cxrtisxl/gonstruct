@@ -44,7 +44,7 @@ func newECDSA(key []byte) (Key, error) {
 	// Generating kid
 	bytes, err := x509.MarshalPKIXPublicKey(k.public)
 	if err != nil {
-		panic(err)
+		return ecdsaKey{}, errors.New("failed to marshal public key")
 	}
 	hash := sha256.Sum256(bytes)
 	k.kid = hex.EncodeToString(hash[:16])

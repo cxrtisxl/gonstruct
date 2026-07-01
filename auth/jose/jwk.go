@@ -8,7 +8,7 @@ type jwk struct {
 }
 
 type JWK interface {
-	isJWK() // маркерный метод, ничего не делает
+	isJWK()
 }
 
 type JWKS struct {

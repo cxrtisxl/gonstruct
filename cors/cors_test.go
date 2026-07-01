@@ -1,33 +1,33 @@
 package cors
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
 func TestCORSMiddleware(t *testing.T) {
-	type TestExpected struct {
+	type Expected struct {
 		pass    bool
 		origin  string
 		methods string
 		headers string
 	}
-	type TestConfig struct {
+	type Config struct {
 		origin   string
 		origins  []string
 		methods  []string
 		headers  []string
-		expected TestExpected
+		expected Expected
 	}
-	var tests []TestConfig = []TestConfig{
+	tests := []Config{
 		{
-			"https://app.example.com",
-			[]string{"*"},
-			[]string{"GET", "OPTIONS", "POST"},
-			[]string{"Authorization"},
-			TestExpected{
+			origin:  "https://app.example.com",
+			origins: []string{"*"},
+			methods: []string{"GET", "OPTIONS", "POST"},
+			headers: []string{"Authorization"},
+			expected: Expected{
 				pass:    true,
 				origin:  "https://app.example.com",
 				methods: "GET, OPTIONS, POST",
@@ -35,11 +35,11 @@ func TestCORSMiddleware(t *testing.T) {
 			},
 		},
 		{
-			"https://app.example.com",
-			[]string{"*"},
-			[]string{"GET", "POST"},
-			[]string{"Content-Type", "Authorization"},
-			TestExpected{
+			origin:  "https://app.example.com",
+			origins: []string{"*"},
+			methods: []string{"GET", "POST"},
+			headers: []string{"Content-Type", "Authorization"},
+			expected: Expected{
 				pass:    true,
 				origin:  "https://app.example.com",
 				methods: "GET, POST, OPTIONS",
@@ -47,11 +47,11 @@ func TestCORSMiddleware(t *testing.T) {
 			},
 		},
 		{
-			"https://app.not-allowed-origin.com",
-			[]string{"https://app.example.com"},
-			[]string{"OPTIONS"},
-			[]string{"Content-Type"},
-			TestExpected{
+			origin:  "https://app.not-allowed-origin.com",
+			origins: []string{"https://app.example.com"},
+			methods: []string{"OPTIONS"},
+			headers: []string{"Content-Type"},
+			expected: Expected{
 				pass: false,
 			},
 		},
@@ -69,14 +69,10 @@ func TestCORSMiddleware(t *testing.T) {
 				),
 			),
 		)
-		srv := &http.Server{Addr: ":8080", Handler: mux}
-		go func() {
-			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				t.Errorf("server: %v", err)
-			}
-		}()
+		srv := httptest.NewServer(mux)
+		defer srv.Close()
 
-		req, err := http.NewRequest(http.MethodGet, "http://localhost:8080/test", nil)
+		req, err := http.NewRequest(http.MethodGet, srv.URL+"/test", nil)
 		req.Header["Origin"] = []string{test.origin}
 		if err != nil {
 			t.Fatal("request error: ", err)
@@ -86,6 +82,7 @@ func TestCORSMiddleware(t *testing.T) {
 		if err != nil {
 			t.Fatal("client error: ", err)
 		}
+		resp.Body.Close()
 
 		if test.expected.pass {
 			got := resp.Header["Access-Control-Allow-Credentials"][0]
@@ -118,8 +115,5 @@ func TestCORSMiddleware(t *testing.T) {
 				t.Fatal("Test expected to fail but it passed with: " + string(b))
 			}
 		}
-
-		resp.Body.Close()
-		srv.Shutdown(context.Background())
 	}
 }
