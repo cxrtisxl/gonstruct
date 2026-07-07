@@ -35,14 +35,12 @@ type JWT struct {
 	keychain        *jose.Keychain
 	refreshTokenTTL time.Duration
 	accessTokenTTL  time.Duration
-	refreshInBody   bool
 }
 
 type EphemeralJWTOpts struct {
 	KeyType         jose.KeyType
 	RefreshTokenTTL time.Duration
 	AccessTokenTTL  time.Duration
-	RefreshInBody   bool
 	ErrorHandler    tools.ErrorHandler
 }
 
@@ -51,7 +49,6 @@ type JWTOpts struct {
 	Keys            []jose.Key
 	RefreshTokenTTL time.Duration
 	AccessTokenTTL  time.Duration
-	RefreshInBody   bool
 	ErrorHandler    tools.ErrorHandler
 }
 
@@ -64,7 +61,6 @@ func NewEphemeralJWT(opts EphemeralJWTOpts) (*JWT, error) {
 		keychain:        keychain,
 		refreshTokenTTL: opts.RefreshTokenTTL,
 		accessTokenTTL:  opts.AccessTokenTTL,
-		refreshInBody:   opts.RefreshInBody,
 	}, nil
 }
 
@@ -73,7 +69,6 @@ func NewJWT(opts JWTOpts) *JWT {
 		keychain:        jose.NewKeychain(opts.PrimaryKey, opts.Keys...),
 		refreshTokenTTL: opts.RefreshTokenTTL,
 		accessTokenTTL:  opts.AccessTokenTTL,
-		refreshInBody:   opts.RefreshInBody,
 	}
 }
 
@@ -114,7 +109,56 @@ func (j *JWT) NewToken(typ jose.TokenType, sub string) (token string, err error)
 	return "", errors.New("token type is not supported")
 }
 
-func (j *JWT) IssuePair(sub string, w http.ResponseWriter, r *http.Request) error {
+// IssuePair issues an access/refresh JWT pair for sub and decides how to
+// deliver them to the client: via cookie, JSON body, or redirect.
+//
+// Parameters:
+//
+//   - setCookie — if true, the refresh token is set as an httpOnly cookie
+//     named "refresh_token" with Path="/auth/refresh". Use for browser
+//     clients (web login, OAuth callback). If false, the refresh token is
+//     not put in a cookie — use jsonIncludeRefresh to return it instead.
+//
+//   - redirect — if a non-empty string, after the cookie is set the
+//     function calls http.Redirect(w, r, redirect, http.StatusFound) and
+//     returns without writing a JSON body. Use only for top-level GET
+//     navigation by the browser (e.g. an OAuth callback), never for
+//     fetch/XHR requests — the redirect will be swallowed by the client
+//     instead of applied to the page. If redirect is non-empty,
+//     jsonIncludeRefresh and jsonIncludeAccess are ignored: no body is
+//     written.
+//
+//   - jsonIncludeRefresh — if true (and redirect == ""), refresh_token is
+//     added to the JSON response body. Use for non-browser clients (mobile
+//     apps, server-to-server API clients) that have no cookie jar.
+//
+//   - jsonIncludeAccess — if true (and redirect == ""), access_token is
+//     added to the JSON response body.
+//
+// If redirect == "" and both jsonInclude* flags are false, an empty JSON
+// object "{}" is returned with a 200 status — a valid case for web login
+// via fetch, where access is fetched separately via /auth/refresh rather
+// than through IssuePair directly.
+//
+// Typical combinations:
+//
+//	Client                        setCookie  redirect      jsonIncludeRefresh  jsonIncludeAccess
+//	OAuth callback (browser)      true       "/dashboard"  —                   —
+//	Web login via fetch (SPA)     true       ""            false               false
+//	Mobile app / API client       false      ""            true                true
+//
+// setCookie=false combined with a non-empty redirect is syntactically
+// allowed but has no practical use: a non-browser client won't act on a
+// 302 anyway.
+func (j *JWT) IssuePair(
+	sub string,
+	setCookie bool,
+	redirect string,
+	jsonIncludeRefresh bool,
+	jsonIncludeAccess bool,
+	w http.ResponseWriter,
+	r *http.Request,
+) error {
 	accessToken, err := j.NewToken(jose.TokenTypeAccess, sub)
 	if err != nil {
 		return &tools.StatusError{Code: 500, Err: err}
@@ -125,11 +169,7 @@ func (j *JWT) IssuePair(sub string, w http.ResponseWriter, r *http.Request) erro
 		return &tools.StatusError{Code: 500, Err: err}
 	}
 
-	body := map[string]string{}
-	if j.refreshInBody {
-		body["access_token"] = accessToken
-		body["refresh_token"] = refreshToken
-	} else {
+	if setCookie {
 		http.SetCookie(w, &http.Cookie{
 			Name:     "refresh_token",
 			Value:    refreshToken,
@@ -140,6 +180,19 @@ func (j *JWT) IssuePair(sub string, w http.ResponseWriter, r *http.Request) erro
 			MaxAge:   int(j.refreshTokenTTL.Seconds()),
 		})
 	}
+
+	if redirect != "" {
+		http.Redirect(w, r, redirect, http.StatusFound)
+		return nil
+	}
+
+	body := map[string]string{}
+	if jsonIncludeRefresh {
+		body["refresh_token"] = refreshToken
+	}
+	if jsonIncludeAccess {
+		body["access_token"] = accessToken
+	}
 	w.Header().Set("Content-Type", "application/json")
 	return json.NewEncoder(w).Encode(body)
 }
@@ -147,7 +200,7 @@ func (j *JWT) IssuePair(sub string, w http.ResponseWriter, r *http.Request) erro
 func (j *JWT) Refresh(w http.ResponseWriter, r *http.Request) error {
 	c, err := r.Cookie("refresh_token")
 	if err != nil {
-		return &tools.StatusError{Code: 401, Err: errors.New("no refresh token")}
+		return &tools.StatusError{Code: 401, Err: err}
 	}
 	claims, err := j.keychain.VerifyRefresh(c.Value)
 	if err != nil {

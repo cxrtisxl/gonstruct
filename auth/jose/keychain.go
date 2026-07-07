@@ -128,7 +128,7 @@ func (k Keychain) VerifyRefresh(token string) (RefreshClaims, error) {
 	if err != nil {
 		return RefreshClaims{}, err
 	}
-	if claims.Type != TokenTypeAccess {
+	if claims.Type != TokenTypeRefresh {
 		return RefreshClaims{}, ErrWrongTokenType
 	}
 	return claims, nil

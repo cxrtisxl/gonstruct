@@ -42,18 +42,16 @@ func (oaj *OAuthJWT) Mount(
 	return nil
 }
 
-func NewDefault(
+func NewWebOAuthJWT(
 	baseDomain string,
+	redirectURL string,
 	loginCallback func(user *authenticator.User) (userID string, err *tools.StatusError),
 	gothProviders []goth.ProviderConfig,
-	web bool,
 ) (Service, error) {
-	refreshInBody := !web
 	s, err := strategy.NewEphemeralJWT(strategy.EphemeralJWTOpts{
 		KeyType:         jose.KeyTypeECDSA,
 		RefreshTokenTTL: 30 * 24 * time.Hour,
 		AccessTokenTTL:  15 * time.Minute,
-		RefreshInBody:   refreshInBody,
 		ErrorHandler:    tools.DefaultErrorHandler,
 	})
 	if err != nil {
@@ -73,7 +71,7 @@ func NewDefault(
 					Err:  errors.New("user id was not returned by LoginCallback"),
 				}
 			}
-			return s.IssuePair(id, w, r)
+			return s.IssuePair(id, true, redirectURL, false, false, w, r)
 		},
 		nil,
 		gothProviders,

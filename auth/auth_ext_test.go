@@ -10,17 +10,24 @@ import (
 	"github.com/cxrtisxl/gonstruct/auth"
 	"github.com/cxrtisxl/gonstruct/auth/authenticator"
 	tools "github.com/cxrtisxl/gonstruct/httptools"
+	"github.com/joho/godotenv"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/providers/google"
 )
 
 func TestGothConfigurableProviders(t *testing.T) {
+	err := godotenv.Load()
+	if err != nil {
+		panic(err)
+	}
+
 	loginCallback := func(user *authenticator.User) (userId string, err *tools.StatusError) {
 		return rand.Text(), nil
 	}
 
-	service, err := auth.NewDefault(
-		"http://localhost:8080",
+	service, err := auth.NewWebOAuthJWT(
+		"https://pac-descending-insider-namespace.trycloudflare.com",
+		"https://pac-descending-insider-namespace.trycloudflare.com/dashboard",
 		loginCallback,
 		[]goth.ProviderConfig{
 			&google.Config{
@@ -28,7 +35,6 @@ func TestGothConfigurableProviders(t *testing.T) {
 				Secret:    os.Getenv("GOOGLE_SECRET"),
 			},
 		},
-		false,
 	)
 	if err != nil {
 		t.Error(err)
@@ -50,6 +56,20 @@ func TestGothConfigurableProviders(t *testing.T) {
 		},
 	)
 	mux.Handle("GET /complete", errHandler(verifyAuth(completeHandler)))
+
+	dashboardHandler := tools.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) error {
+			w.Write([]byte(`
+				OAuth completed. Refresh token is set to Cookie.
+				To complete the test:
+				1. GET /auth/refresh (error expected) to get the refresh token from browser Cookies
+				2. POST /auth/refresh with refresh_token cookie to get Access Token
+				3. GET /complete with Authorization: Bearer [Access Token]
+			`))
+			return nil
+		},
+	)
+	mux.Handle("GET /dashboard", errHandler(dashboardHandler))
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
