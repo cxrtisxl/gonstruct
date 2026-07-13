@@ -28,6 +28,7 @@ func TestGothConfigurableProviders(t *testing.T) {
 	service, err := auth.NewWebOAuthJWT(
 		"https://pac-descending-insider-namespace.trycloudflare.com",
 		"https://pac-descending-insider-namespace.trycloudflare.com/dashboard",
+		http.SameSiteLaxMode,
 		loginCallback,
 		[]goth.ProviderConfig{
 			&google.Config{

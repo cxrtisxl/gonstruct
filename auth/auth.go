@@ -45,6 +45,7 @@ func (oaj *OAuthJWT) Mount(
 func NewWebOAuthJWT(
 	baseDomain string,
 	redirectURL string,
+	cookieSameSite http.SameSite,
 	loginCallback func(user *authenticator.User) (userID string, err *tools.StatusError),
 	gothProviders []goth.ProviderConfig,
 ) (Service, error) {
@@ -71,7 +72,7 @@ func NewWebOAuthJWT(
 					Err:  errors.New("user id was not returned by LoginCallback"),
 				}
 			}
-			return s.IssuePair(id, true, redirectURL, false, false, w, r)
+			return s.IssuePair(id, true, &cookieSameSite, redirectURL, false, false, w, r)
 		},
 		nil,
 		gothProviders,

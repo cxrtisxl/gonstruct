@@ -119,6 +119,9 @@ func (j *JWT) NewToken(typ jose.TokenType, sub string) (token string, err error)
 //     clients (web login, OAuth callback). If false, the refresh token is
 //     not put in a cookie — use jsonIncludeRefresh to return it instead.
 //
+//   - cookieSameSite - if setCookie is true, configures http.SameSite
+//     for the refresh token Cookie. If nil fallbacks to http.SameSiteDefaultMode
+//
 //   - redirect — if a non-empty string, after the cookie is set the
 //     function calls http.Redirect(w, r, redirect, http.StatusFound) and
 //     returns without writing a JSON body. Use only for top-level GET
@@ -153,6 +156,7 @@ func (j *JWT) NewToken(typ jose.TokenType, sub string) (token string, err error)
 func (j *JWT) IssuePair(
 	sub string,
 	setCookie bool,
+	cookieSameSite *http.SameSite,
 	redirect string,
 	jsonIncludeRefresh bool,
 	jsonIncludeAccess bool,
@@ -170,13 +174,17 @@ func (j *JWT) IssuePair(
 	}
 
 	if setCookie {
+		sameSite := http.SameSiteDefaultMode
+		if cookieSameSite != nil {
+			sameSite = *cookieSameSite
+		}
 		http.SetCookie(w, &http.Cookie{
 			Name:     "refresh_token",
 			Value:    refreshToken,
 			Path:     "/auth/refresh",
 			HttpOnly: true,
 			Secure:   true,
-			SameSite: http.SameSiteLaxMode,
+			SameSite: sameSite,
 			MaxAge:   int(j.refreshTokenTTL.Seconds()),
 		})
 	}
