@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"time"
@@ -18,8 +19,8 @@ type Service interface {
 }
 
 type OAuthJWT struct {
-	s strategy.Scheme
-	a authenticator.Provider
+	a *authenticator.OAuth
+	s *strategy.JWT
 }
 
 func (oaj *OAuthJWT) Middleware(next tools.Handler) tools.Handler {
@@ -42,13 +43,25 @@ func (oaj *OAuthJWT) Mount(
 	return nil
 }
 
+func (oaj *OAuthJWT) UserID(ctx context.Context) (userID string, ok bool) {
+	ctxData, ok := oaj.s.FromContext(ctx).(strategy.CtxData)
+	if !ok || ctxData.Type != strategy.TypeJWT {
+		return "", false
+	}
+	claims, ok := ctxData.Data.(jose.AccessClaims)
+	if !ok || claims.Subject == "" {
+		return "", false
+	}
+	return claims.Subject, true
+}
+
 func NewWebOAuthJWT(
 	baseDomain string,
 	redirectURL string,
 	cookieSameSite http.SameSite,
 	loginCallback func(user *authenticator.User) (userID string, err *tools.StatusError),
 	gothProviders []goth.ProviderConfig,
-) (Service, error) {
+) (*OAuthJWT, error) {
 	s, err := strategy.NewEphemeralJWT(strategy.EphemeralJWTOpts{
 		KeyType:         jose.KeyTypeECDSA,
 		RefreshTokenTTL: 30 * 24 * time.Hour,

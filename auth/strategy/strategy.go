@@ -99,6 +99,10 @@ func (j *JWT) Middleware(next tools.Handler) tools.Handler {
 	})
 }
 
+func (j *JWT) FromContext(ctx context.Context) any {
+	return ctx.Value(ctxDataKey)
+}
+
 func (j *JWT) NewToken(typ jose.TokenType, sub string) (token string, err error) {
 	switch typ {
 	case jose.TokenTypeAccess:

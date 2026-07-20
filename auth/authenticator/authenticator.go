@@ -19,7 +19,7 @@ type Provider interface {
 
 type LoginHandler func(user *User, w http.ResponseWriter, r *http.Request) error
 
-type OAuthAuthenticator struct {
+type OAuth struct {
 	baseDomain      string
 	loginHandler    LoginHandler
 	logoutHandler   tools.HandlerFunc
@@ -31,8 +31,8 @@ func NewOAuthAuthenticator(
 	loginHandler LoginHandler,
 	logoutHandler tools.HandlerFunc,
 	gothProviders []goth.ProviderConfig,
-) *OAuthAuthenticator {
-	return &OAuthAuthenticator{
+) *OAuth {
+	return &OAuth{
 		baseDomain:      baseDomain,
 		loginHandler:    loginHandler,
 		logoutHandler:   logoutHandler,
@@ -40,11 +40,11 @@ func NewOAuthAuthenticator(
 	}
 }
 
-func (oa *OAuthAuthenticator) Type() Type {
+func (oa *OAuth) Type() Type {
 	return TypeOAuth
 }
 
-func (oa *OAuthAuthenticator) Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler) error {
+func (oa *OAuth) Mount(mux *http.ServeMux, prefix string, errHandler tools.ErrorHandler) error {
 	providers := make([]goth.Provider, len(oa.providerConfigs))
 	for i, cfg := range oa.providerConfigs {
 		cfg.SetCallbackURL(oa.baseDomain + prefix + "/" + cfg.Name() + "/callback")
@@ -57,7 +57,7 @@ func (oa *OAuthAuthenticator) Mount(mux *http.ServeMux, prefix string, errHandle
 	return nil
 }
 
-func (oa *OAuthAuthenticator) AuthHandler(w http.ResponseWriter, r *http.Request) error {
+func (oa *OAuth) AuthHandler(w http.ResponseWriter, r *http.Request) error {
 	gothUser, err := gothic.CompleteUserAuth(w, r)
 	if err != nil {
 		gothic.BeginAuthHandler(w, r)
@@ -70,7 +70,7 @@ func (oa *OAuthAuthenticator) AuthHandler(w http.ResponseWriter, r *http.Request
 	return nil
 }
 
-func (oa *OAuthAuthenticator) CallbackHandler(w http.ResponseWriter, r *http.Request) error {
+func (oa *OAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) error {
 	gothUser, err := gothic.CompleteUserAuth(w, r)
 	if err != nil {
 		return &tools.StatusError{
@@ -85,7 +85,7 @@ func (oa *OAuthAuthenticator) CallbackHandler(w http.ResponseWriter, r *http.Req
 	return nil
 }
 
-func (oa *OAuthAuthenticator) LogoutHandler(w http.ResponseWriter, r *http.Request) error {
+func (oa *OAuth) LogoutHandler(w http.ResponseWriter, r *http.Request) error {
 	err := gothic.Logout(w, r)
 	if err != nil {
 		return &tools.StatusError{

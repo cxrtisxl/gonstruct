@@ -16,18 +16,19 @@ import (
 )
 
 func TestGothConfigurableProviders(t *testing.T) {
+	mockUserID := rand.Text()
 	err := godotenv.Load()
 	if err != nil {
 		panic(err)
 	}
 
 	loginCallback := func(user *authenticator.User) (userId string, err *tools.StatusError) {
-		return rand.Text(), nil
+		return mockUserID, nil
 	}
 
-	service, err := auth.NewWebOAuthJWT(
-		"https://pac-descending-insider-namespace.trycloudflare.com",
-		"https://pac-descending-insider-namespace.trycloudflare.com/dashboard",
+	authService, err := auth.NewWebOAuthJWT(
+		"https://picked-trailers-requirement-float.trycloudflare.com",
+		"https://picked-trailers-requirement-float.trycloudflare.com/dashboard",
 		http.SameSiteLaxMode,
 		loginCallback,
 		[]goth.ProviderConfig{
@@ -41,16 +42,25 @@ func TestGothConfigurableProviders(t *testing.T) {
 		t.Error(err)
 	}
 
-	verifyAuth := service.Middleware
+	verifyAuth := authService.Middleware
 	errHandler := tools.DefaultErrorHandler
 
 	done := make(chan int, 1)
 	mux := http.NewServeMux()
 	srv := &http.Server{Addr: ":8080", Handler: mux}
-	service.Mount(mux, "/auth", errHandler)
+	authService.Mount(mux, "/auth", errHandler)
 
 	completeHandler := tools.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) error {
+			userId, ok := authService.UserID(r.Context())
+			if !ok {
+				w.Write([]byte("no userId in the request context"))
+				return nil
+			}
+			if userId != mockUserID {
+				w.Write([]byte("wrong userId in the request context"))
+				return nil
+			}
 			w.Write([]byte("test passed"))
 			done <- 1
 			return nil
