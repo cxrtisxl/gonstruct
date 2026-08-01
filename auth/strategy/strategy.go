@@ -209,6 +209,23 @@ func (j *JWT) IssuePair(
 	return json.NewEncoder(w).Encode(body)
 }
 
+func (j *JWT) DropCookie(
+	cookieSameSite http.SameSite,
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/auth/refresh",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: cookieSameSite,
+		MaxAge:   -1,
+		Expires:  time.Unix(0, 0),
+	})
+}
+
 func (j *JWT) Refresh(w http.ResponseWriter, r *http.Request) error {
 	c, err := r.Cookie("refresh_token")
 	if err != nil {

@@ -74,6 +74,7 @@ func NewWebOAuthJWT(
 
 	a := authenticator.NewOAuthAuthenticator(
 		baseDomain,
+		// Login
 		func(user *authenticator.User, w http.ResponseWriter, r *http.Request) error {
 			id, err := loginCallback(user)
 			if err != nil {
@@ -87,7 +88,11 @@ func NewWebOAuthJWT(
 			}
 			return s.IssuePair(id, true, &cookieSameSite, redirectURL, false, false, w, r)
 		},
-		nil,
+		// Logout
+		func(w http.ResponseWriter, r *http.Request) error {
+			s.DropCookie(cookieSameSite, w, r)
+			return nil
+		},
 		gothProviders,
 	)
 
